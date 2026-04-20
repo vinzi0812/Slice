@@ -31,7 +31,7 @@ A modern, minimalistic expense tracking application built with FastAPI and React
    # Google OAuth (Get these from Google Cloud Console)
    GOOGLE_CLIENT_ID=your_google_client_id_here
    GOOGLE_CLIENT_SECRET=your_google_client_secret_here
-   GOOGLE_REDIRECT_URI=http://localhost:8000/auth/google/callback
+   GOOGLE_REDIRECT_URI=http://localhost:8080/auth/google/callback
 
    # JWT Secret (generate a random string)
    SECRET_KEY=your_random_secret_key_here
@@ -50,7 +50,7 @@ A modern, minimalistic expense tracking application built with FastAPI and React
 4. Go to "Credentials" → "Create Credentials" → "OAuth 2.0 Client IDs"
 5. Set application type to "Web application"
 6. Add authorized redirect URIs:
-   - `http://localhost:8000/auth/google/callback`
+   - `http://localhost:8080/auth/google/callback`
 7. Copy the Client ID and Client Secret to your `.env` file
 
 ### 3. Frontend Setup

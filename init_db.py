@@ -4,8 +4,7 @@ Database initialization script for Supabase.
 Run this once to create all tables in your Supabase database.
 """
 
-from backend.database import engine, Base
-from backend.models import User, Group, UserGroupMapping, Expense, ExpenseSplit, Settlement, UserGroupBalance
+from app.db.database import engine, Base
 
 def create_tables():
     """Create all tables in the database"""

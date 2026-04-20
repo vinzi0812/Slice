@@ -1,31 +1,33 @@
 from datetime import datetime, timedelta, timezone
 from typing import Optional
+import bcrypt
 from jose import JWTError, jwt
-from passlib.context import CryptContext
 from fastapi import HTTPException, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from sqlalchemy.orm import Session
-from .database import SessionLocal
-from .models import User
-from .oauth_config import SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES
-
-# Password hashing
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+from app.db.database import SessionLocal
+from app.db.models import User
+from app.core.config import SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES
 
 # JWT security
 security = HTTPBearer()
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify a password against its hash"""
-    return pwd_context.verify(plain_password, hashed_password)
+    try:
+        return bcrypt.checkpw(plain_password.encode("utf-8"), hashed_password.encode("utf-8"))
+    except ValueError:
+        # Legacy or malformed hashes should fail authentication, not crash the API.
+        return False
 
 def get_password_hash(password: str) -> str:
     """Hash a password"""
-    return pwd_context.hash(password)
+    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     """Create JWT access token"""
     to_encode = data.copy()
+    if "sub" in to_encode and to_encode["sub"] is not None:
+        to_encode["sub"] = str(to_encode["sub"])
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta
     else:
@@ -53,6 +55,11 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
 
     user_id = payload.get("sub")
     if user_id is None:
+        raise HTTPException(status_code=401, detail="Invalid authentication token")
+
+    try:
+        user_id = int(user_id)
+    except (TypeError, ValueError):
         raise HTTPException(status_code=401, detail="Invalid authentication token")
 
     db = SessionLocal()

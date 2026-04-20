@@ -6,7 +6,7 @@ import secrets
 # OAuth Configuration
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
-GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI", "http://localhost:8000/auth/google/callback")
+GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI", "http://localhost:8080/api/auth/google/callback")
 
 # JWT Configuration
 SECRET_KEY = os.getenv("SECRET_KEY", secrets.token_urlsafe(32))
@@ -45,6 +45,22 @@ def get_google_auth_url(state: str = None):
 
     return authorization_url
 
+async def exchange_code_for_token(code: str):
+    """Exchange authorization code for access token"""
+    async with AsyncOAuth2Client(
+        client_id=GOOGLE_CLIENT_ID,
+        client_secret=GOOGLE_CLIENT_SECRET,
+        redirect_uri=GOOGLE_REDIRECT_URI,
+    ) as client:
+        try:
+            token = await client.fetch_token(
+                GOOGLE_TOKEN_URL,
+                code=code,
+            )
+            return token
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Failed to exchange code for token: {str(e)}")
+
 async def get_google_user_info(token: str):
     """Get user info from Google using access token"""
     async with AsyncOAuth2Client(
@@ -58,3 +74,4 @@ async def get_google_user_info(token: str):
             return resp.json()
         except Exception as e:
             raise HTTPException(status_code=400, detail=f"Failed to get user info: {str(e)}")
+

@@ -1,12 +1,15 @@
 from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Boolean, Enum, func
 from sqlalchemy.orm import relationship
-from .database import Base
+from app.db.database import Base
 import enum
 
 class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
+    username = Column(String, unique=True, index=True, nullable=True)
+    first_name = Column(String, nullable=True)
+    last_name = Column(String, nullable=True)
     name = Column(String, index=True)
     email = Column(String, unique=True, index=True)
     password_hash = Column(String)
@@ -17,8 +20,11 @@ class User(Base):
     # Relationships
     groups = relationship("Group", back_populates="created_by_user")
     group_memberships = relationship("UserGroupMapping", back_populates="user")
-    expenses_paid = relationship("Expense", back_populates="paid_by_user")
+    expense_contributions = relationship("ExpenseContribution", back_populates="user")
     expense_splits = relationship("ExpenseSplit", back_populates="user")
+    group_balances = relationship("UserGroupBalance", back_populates="user")
+    debts_owed = relationship("GroupDebt", foreign_keys="GroupDebt.from_user_id", back_populates="from_user")
+    debts_receivable = relationship("GroupDebt", foreign_keys="GroupDebt.to_user_id", back_populates="to_user")
     settlements_from = relationship("Settlement", foreign_keys="Settlement.from_user_id", back_populates="from_user")
     settlements_to = relationship("Settlement", foreign_keys="Settlement.to_user_id", back_populates="to_user")
 
@@ -39,6 +45,7 @@ class Group(Base):
     expenses = relationship("Expense", back_populates="group")
     settlements = relationship("Settlement", back_populates="group")
     balances = relationship("UserGroupBalance", back_populates="group")
+    debts = relationship("GroupDebt", back_populates="group")
 
 
 class UserGroupMapping(Base):
@@ -60,7 +67,6 @@ class Expense(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     group_id = Column(Integer, ForeignKey("groups.id"))
-    paid_by = Column(Integer, ForeignKey("users.id"))
     description = Column(String)
     amount = Column(Float)
     expense_type = Column(String)  # petrol, food, movie, games, etc.
@@ -69,8 +75,22 @@ class Expense(Base):
 
     # Relationships
     group = relationship("Group", back_populates="expenses")
-    paid_by_user = relationship("User", back_populates="expenses_paid")
+    contributions = relationship("ExpenseContribution", back_populates="expense", cascade="all, delete-orphan")
     splits = relationship("ExpenseSplit", back_populates="expense", cascade="all, delete-orphan")
+
+
+class ExpenseContribution(Base):
+    __tablename__ = "expense_contributions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    expense_id = Column(Integer, ForeignKey("expenses.id"))
+    user_id = Column(Integer, ForeignKey("users.id"))
+    amount_paid = Column(Float)
+    created_at = Column(DateTime, default=func.now())
+
+    # Relationships
+    expense = relationship("Expense", back_populates="contributions")
+    user = relationship("User", back_populates="expense_contributions")
 
 
 class SplitType(str, enum.Enum):
@@ -140,6 +160,21 @@ class UserGroupBalance(Base):
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
 
     # Relationships
-    user = relationship("User")
+    user = relationship("User", back_populates="group_balances")
     group = relationship("Group", back_populates="balances")
 
+
+class GroupDebt(Base):
+    __tablename__ = "group_debts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    group_id = Column(Integer, ForeignKey("groups.id"))
+    from_user_id = Column(Integer, ForeignKey("users.id"))
+    to_user_id = Column(Integer, ForeignKey("users.id"))
+    amount = Column(Float, default=0.0)
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+
+    # Relationships
+    group = relationship("Group", back_populates="debts")
+    from_user = relationship("User", foreign_keys=[from_user_id], back_populates="debts_owed")
+    to_user = relationship("User", foreign_keys=[to_user_id], back_populates="debts_receivable")
